@@ -148,9 +148,11 @@ class Publisher:
 
         # Cleanup orphaned images
         if not dry_run and self.optimizer:
+            # Also include images referenced by other pages (interests, about, etc.)
+            all_site_images = all_referenced_images | self._collect_all_referenced_images()
             orphans = self.optimizer.cleanup_orphans(
                 self.image_output,
-                all_referenced_images,
+                all_site_images,
                 dry_run=dry_run,
             )
             result.orphans_removed.extend(str(p) for p in orphans)
