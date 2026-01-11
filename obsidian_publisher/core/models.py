@@ -56,9 +56,16 @@ class ProcessedNote:
 
 
 @dataclass
+class PublishFailure:
+    """A failed publish operation."""
+    note_title: str
+    error: str
+
+
+@dataclass
 class PublishResult:
     """Result of a publish operation."""
-    published: List[str] = field(default_factory=list)
-    failed: List[Tuple[str, str]] = field(default_factory=list)  # (name, error)
-    orphans_removed: List[str] = field(default_factory=list)
+    published_titles: List[str] = field(default_factory=list)
+    failures: List[PublishFailure] = field(default_factory=list)
+    removed_image_paths: List[Path] = field(default_factory=list)
     dry_run: bool = False

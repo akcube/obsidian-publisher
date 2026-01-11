@@ -96,14 +96,14 @@ This is a draft.
     def test_republish_discovers_notes(self, publisher, temp_output):
         result = publisher.republish()
 
-        assert len(result.published) == 2
-        assert "First Note" in result.published
-        assert "Second Note" in result.published
+        assert len(result.published_titles) == 2
+        assert "First Note" in result.published_titles
+        assert "Second Note" in result.published_titles
 
     def test_republish_excludes_drafts(self, publisher):
         result = publisher.republish()
 
-        assert "Draft Note" not in result.published
+        assert "Draft Note" not in result.published_titles
 
     def test_republish_creates_files(self, publisher, temp_output):
         publisher.republish()
@@ -134,7 +134,7 @@ This is a draft.
         result = publisher.republish(dry_run=True)
 
         # Should report what would be published
-        assert len(result.published) == 2
+        assert len(result.published_titles) == 2
 
         # But no files should be created
         content_dir = temp_output / "content/posts"
@@ -143,8 +143,8 @@ This is a draft.
     def test_add_specific_note(self, publisher, temp_output):
         result = publisher.add("First Note")
 
-        assert len(result.published) == 1
-        assert "First Note" in result.published
+        assert len(result.published_titles) == 1
+        assert "First Note" in result.published_titles
 
         content_dir = temp_output / "content/posts"
         assert (content_dir / "first-note.md").exists()
@@ -154,14 +154,14 @@ This is a draft.
     def test_add_nonexistent_note(self, publisher):
         result = publisher.add("Nonexistent Note")
 
-        assert len(result.failed) == 1
-        assert "Nonexistent Note" in result.failed[0][0]
+        assert len(result.failures) == 1
+        assert "Nonexistent Note" in result.failures[0].note_title
 
     def test_add_draft_note(self, publisher):
         result = publisher.add("Draft Note")
 
-        assert len(result.failed) == 1
-        assert "Draft Note" in result.failed[0][0]
+        assert len(result.failures) == 1
+        assert "Draft Note" in result.failures[0].note_title
 
     def test_delete_note(self, publisher, temp_output):
         # First publish
@@ -170,7 +170,7 @@ This is a draft.
         # Then delete
         result = publisher.delete("First Note")
 
-        assert "First Note" in result.published
+        assert "First Note" in result.published_titles
 
         content_dir = temp_output / "content/posts"
         assert not (content_dir / "first-note.md").exists()
@@ -185,12 +185,12 @@ This is a draft.
         result = publisher.delete("First Note")
 
         # Image should be cleaned up (orphaned)
-        assert len(result.orphans_removed) > 0
+        assert len(result.removed_image_paths) > 0
 
     def test_delete_nonexistent(self, publisher, temp_output):
         result = publisher.delete("Nonexistent Note")
 
-        assert len(result.failed) == 1
+        assert len(result.failures) == 1
 
 
 class TestPublisherWithTransforms:

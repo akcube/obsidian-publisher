@@ -167,5 +167,5 @@ class TestConfigCompatibility:
         publisher = create_publisher_from_config(config_path)
         result = publisher.republish(dry_run=True)
 
-        assert len(result.published) > 0
-        assert len(result.failed) == 0
+        assert len(result.published_titles) > 0
+        assert len(result.failures) == 0
