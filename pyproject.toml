@@ -8,9 +8,33 @@ version = "0.1.0"
 description = "Publish Obsidian notes to static site generators with configurable transforms"
 readme = "README.md"
 requires-python = ">=3.10"
-license = {text = "MIT"}
+license = "MIT"
 authors = [
     {name = "Kishore Kumar"}
+]
+keywords = [
+    "obsidian",
+    "markdown",
+    "hugo",
+    "static-site",
+    "publishing",
+    "wikilinks",
+    "zettelkasten",
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Environment :: Console",
+    "Intended Audience :: Developers",
+    "Intended Audience :: End Users/Desktop",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Documentation",
+    "Topic :: Internet :: WWW/HTTP :: Site Management",
+    "Topic :: Text Processing :: Markup :: Markdown",
 ]
 dependencies = [
     "pyyaml>=6.0",
@@ -26,6 +50,12 @@ dev = [
     "pytest>=7.0",
     "pytest-cov>=4.0",
 ]
+
+[project.urls]
+Homepage = "https://github.com/akcube/obsidian-publisher"
+Repository = "https://github.com/akcube/obsidian-publisher"
+Documentation = "https://github.com/akcube/obsidian-publisher#readme"
+Issues = "https://github.com/akcube/obsidian-publisher/issues"
 
 [project.scripts]
 obsidian-publish = "obsidian_publisher.cli.main:cli"
