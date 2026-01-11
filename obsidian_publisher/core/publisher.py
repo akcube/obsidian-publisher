@@ -34,8 +34,6 @@ class PublisherConfig:
     optimize_images: bool = True
     max_image_width: int = 1920
     webp_quality: int = 85
-    enable_related_reading: bool = False
-    link_prefix: str = ""
 
 
 class Publisher:
@@ -90,8 +88,6 @@ class Publisher:
             frontmatter_transform=frontmatter_transform,
             image_path_prefix=config.image_path_prefix,
             output_image_extension=".webp" if config.optimize_images else None,
-            enable_related_reading=config.enable_related_reading,
-            link_prefix=config.link_prefix,
         )
 
         # Initialize image optimizer
@@ -410,13 +406,6 @@ def create_publisher_from_config(config_path: Path) -> Publisher:
     vault_path = Path(raw_config['vault_path']).expanduser()
     output_path = Path(raw_config['output_path']).expanduser()
 
-    # Get link prefix for related reading section
-    link_config = raw_config.get('link_transform', {})
-    link_prefix = link_config.get('prefix', '')
-
-    # Get features config
-    features_config = raw_config.get('features', {})
-
     config = PublisherConfig(
         vault_path=vault_path,
         output_path=output_path,
@@ -430,8 +419,6 @@ def create_publisher_from_config(config_path: Path) -> Publisher:
         optimize_images=raw_config.get('optimize_images', True),
         max_image_width=raw_config.get('max_image_width', 1920),
         webp_quality=raw_config.get('webp_quality', 85),
-        enable_related_reading=features_config.get('enable_related_reading', False),
-        link_prefix=link_prefix,
     )
 
     # Build transforms based on config
