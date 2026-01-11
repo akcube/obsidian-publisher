@@ -1,0 +1,224 @@
+"""Vault discovery module for finding publishable notes."""
+
+from pathlib import Path
+from typing import Dict, List, Optional, Set, Tuple
+import yaml
+import inflection
+import datetime
+
+from obsidian_publisher.core.models import NoteMetadata
+
+
+class VaultDiscovery:
+    """Discovers and filters notes eligible for publishing from an Obsidian vault."""
+
+    def __init__(
+        self,
+        vault_path: Path,
+        source_dir: str = ".",
+        required_tags: Optional[List[str]] = None,
+        excluded_tags: Optional[List[str]] = None,
+    ):
+        """Initialize VaultDiscovery.
+
+        Args:
+            vault_path: Path to the Obsidian vault root
+            source_dir: Subdirectory within vault to scan (default: vault root)
+            required_tags: Tags that must be present for a note to be publishable
+            excluded_tags: Tags that exclude a note from publishing
+        """
+        self.vault_path = Path(vault_path)
+        self.source_dir = self.vault_path / source_dir
+        self.required_tags = set(required_tags or [])
+        self.excluded_tags = set(excluded_tags or [])
+
+    def discover_all(self) -> List[NoteMetadata]:
+        """Find all publishable notes in the vault.
+
+        Returns:
+            List of NoteMetadata for all notes passing the tag filters
+        """
+        if not self.source_dir.exists():
+            raise FileNotFoundError(f"Source directory not found: {self.source_dir}")
+
+        publishable = []
+        for note_path in self.source_dir.glob("*.md"):
+            metadata = self._get_note_metadata(note_path)
+            if metadata is None:
+                continue
+
+            is_pub, _ = self.is_publishable(metadata)
+            if is_pub:
+                publishable.append(metadata)
+
+        return publishable
+
+    def get_note(self, name_or_path: str) -> Optional[NoteMetadata]:
+        """Get a single note by name or path.
+
+        Args:
+            name_or_path: Note title, filename (with or without .md), or full path
+
+        Returns:
+            NoteMetadata if found, None otherwise
+        """
+        # Try as full path first
+        path = Path(name_or_path)
+        if path.exists() and path.suffix == '.md':
+            return self._get_note_metadata(path)
+
+        # Try as filename in source_dir
+        if not name_or_path.endswith('.md'):
+            name_or_path = name_or_path + '.md'
+
+        note_path = self.source_dir / name_or_path
+        if note_path.exists():
+            return self._get_note_metadata(note_path)
+
+        # Try to find by title match
+        for note_path in self.source_dir.glob("*.md"):
+            metadata = self._get_note_metadata(note_path)
+            if metadata and metadata.title.lower() == name_or_path.replace('.md', '').lower():
+                return metadata
+
+        return None
+
+    def is_publishable(self, note: NoteMetadata) -> Tuple[bool, str]:
+        """Check if a note meets publishing criteria.
+
+        Args:
+            note: NoteMetadata to check
+
+        Returns:
+            Tuple of (is_publishable, reason)
+        """
+        note_tags = set(note.tags)
+
+        # Check for required tags
+        if self.required_tags and not self.required_tags.intersection(note_tags):
+            missing = ', '.join(self.required_tags)
+            return False, f"Missing required tags: {missing}"
+
+        # Check for excluded tags
+        excluded_found = self.excluded_tags.intersection(note_tags)
+        if excluded_found:
+            found = ', '.join(excluded_found)
+            return False, f"Contains excluded tags: {found}"
+
+        return True, "OK"
+
+    def _get_note_metadata(self, file_path: Path) -> Optional[NoteMetadata]:
+        """Parse a note file and extract metadata.
+
+        Args:
+            file_path: Path to the markdown file
+
+        Returns:
+            NoteMetadata or None if parsing fails
+        """
+        try:
+            frontmatter, content = self._parse_frontmatter(file_path)
+            tags = self._extract_tags(frontmatter)
+
+            title = frontmatter.get('title', file_path.stem)
+            slug = inflection.parameterize(title)
+
+            # Get dates
+            creation_date = self._get_date_string(frontmatter.get('created'))
+            publication_date = self._get_date_string(frontmatter.get('date'))
+
+            return NoteMetadata(
+                path=file_path,
+                title=title,
+                slug=slug,
+                frontmatter=frontmatter,
+                content=content,
+                tags=tags,
+                creation_date=creation_date,
+                publication_date=publication_date,
+                processed_tags=None,
+            )
+        except Exception as e:
+            print(f"Warning: Failed to parse {file_path.name}: {e}")
+            return None
+
+    def _parse_frontmatter(self, file_path: Path) -> Tuple[Dict, str]:
+        """Parse YAML frontmatter and content from markdown file.
+
+        Args:
+            file_path: Path to the markdown file
+
+        Returns:
+            Tuple of (frontmatter_dict, content_string)
+        """
+        with open(file_path, 'r', encoding='utf-8') as f:
+            content = f.read()
+
+        # Check for YAML frontmatter
+        if not content.startswith('---'):
+            return {}, content
+
+        try:
+            # Split frontmatter from content
+            parts = content.split('---\n', 2)
+            if len(parts) < 3:
+                return {}, content
+
+            frontmatter_str = parts[1]
+            content_str = parts[2]
+
+            # Parse YAML
+            frontmatter = yaml.safe_load(frontmatter_str)
+            if not isinstance(frontmatter, dict):
+                return {}, content
+
+            return frontmatter, content_str
+
+        except yaml.YAMLError as e:
+            print(f"Warning: Failed to parse YAML in {file_path.name}: {e}")
+            return {}, content
+
+    def _extract_tags(self, frontmatter: Dict) -> List[str]:
+        """Extract all tags from frontmatter.
+
+        Handles both list and string formats.
+
+        Args:
+            frontmatter: Parsed frontmatter dict
+
+        Returns:
+            List of tag strings
+        """
+        tags = []
+
+        if 'tags' in frontmatter:
+            tag_data = frontmatter['tags']
+            if isinstance(tag_data, list):
+                tags.extend(str(tag) for tag in tag_data)
+            elif isinstance(tag_data, str):
+                tags.append(tag_data)
+
+        return tags
+
+    def _get_date_string(self, date_value) -> str:
+        """Convert various date formats to string.
+
+        Args:
+            date_value: Date in various formats (str, datetime, date, None)
+
+        Returns:
+            Date string or empty string
+        """
+        if date_value is None:
+            return ""
+
+        if isinstance(date_value, str):
+            return date_value
+
+        if isinstance(date_value, datetime.datetime):
+            return date_value.strftime('%Y-%m-%d %H:%M:%S%z')
+
+        if isinstance(date_value, datetime.date):
+            return date_value.strftime('%Y-%m-%d')
+
+        return str(date_value)

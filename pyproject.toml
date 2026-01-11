@@ -1,0 +1,35 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "obsidian-publisher"
+version = "0.1.0"
+description = "Publish Obsidian notes to static site generators with configurable transforms"
+readme = "README.md"
+requires-python = ">=3.10"
+license = {text = "MIT"}
+authors = [
+    {name = "Kishore Kumar"}
+]
+dependencies = [
+    "pyyaml>=6.0",
+    "inflection>=0.5.1",
+    "titlecase>=2.4",
+    "Pillow>=10.0.0",
+    "click>=8.1.0",
+    "gitpython>=3.1.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0",
+    "pytest-cov>=4.0",
+]
+
+[project.scripts]
+obsidian-publish = "obsidian_publisher.cli.main:cli"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["obsidian_publisher*"]
