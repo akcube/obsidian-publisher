@@ -247,6 +247,36 @@ tags:
         assert note is not None
         assert note.title == "Test Note One"
 
+    def test_get_note_rejects_non_md_absolute_path(self, temp_vault):
+        # Create a non-.md file
+        txt_file = temp_vault / "notes.txt"
+        txt_file.write_text("not a markdown file")
+
+        discovery = VaultDiscovery(temp_vault)
+        note = discovery.get_note(str(txt_file))
+
+        assert note is None
+
+    def test_get_note_rejects_non_md_existing_path(self, temp_vault):
+        # Create a non-.md file with same stem as a note
+        txt_file = temp_vault / "note1.txt"
+        txt_file.write_text("not a markdown file")
+
+        discovery = VaultDiscovery(temp_vault)
+        # Should reject the .txt file, not fall through to find note1.md
+        note = discovery.get_note("note1.txt")
+
+        assert note is None
+
+    def test_get_note_non_md_name_does_not_find_md_file(self, temp_vault):
+        discovery = VaultDiscovery(temp_vault)
+        # "note1.txt" should NOT find "note1.md" - this was the original bug
+        note = discovery.get_note("note1.txt")
+
+        # Since note1.txt doesn't exist on disk, it's treated as a name
+        # The name "note1.txt" (with .txt) should not match "note1.md"
+        assert note is None
+
 
 class TestFrontmatterParsing:
     """Tests for frontmatter parsing edge cases."""

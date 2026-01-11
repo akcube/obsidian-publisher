@@ -68,37 +68,42 @@ class VaultDiscovery:
         return publishable
 
     def get_note(self, name_or_path: str) -> Optional[NoteMetadata]:
-        """Get a single note by name or path.
+        """Get a single note by name, filename, or path.
 
         Args:
-            name_or_path: Note title, filename (with or without .md), or full path
+            name_or_path: Note title, filename (with or without .md), or full path.
+                          Non-.md file paths are rejected.
 
         Returns:
             NoteMetadata if found, None otherwise
         """
-        # Try as full path first
         path = Path(name_or_path)
-        if path.exists() and path.suffix == '.md':
+
+        # If it's an absolute path or exists on disk, treat as file path
+        if path.is_absolute() or path.exists():
+            if path.suffix != '.md':
+                return None
             return self._get_note_metadata(path)
 
-        stem = Path(name_or_path).stem
-        filename = f"{stem}.md"
-        search_name = stem.lower()
+        # Treat as name/filename - normalize by stripping .md if present
+        name = name_or_path
+        if name.endswith('.md'):
+            name = name[:-3]
 
         # Search all source directories
         for source_dir in self.source_dirs:
             if not source_dir.exists():
                 continue
 
-            # Try as filename in source_dir
-            note_path = source_dir / filename
+            # Try exact filename match
+            note_path = source_dir / f"{name}.md"
             if note_path.exists():
                 return self._get_note_metadata(note_path)
 
-            # Try to find by title match
+            # Try title match (case-insensitive)
             for note_path in source_dir.glob("*.md"):
                 metadata = self._get_note_metadata(note_path)
-                if metadata and metadata.title.lower() == search_name:
+                if metadata and metadata.title.lower() == name.lower():
                     return metadata
 
         return None
