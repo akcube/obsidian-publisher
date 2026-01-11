@@ -55,13 +55,12 @@ class ContentProcessor:
     """
 
     # Pattern for wikilinks: [[target]] or [[target|display]]
-    WIKILINK_PATTERN = re.compile(r'\[\[([^\]|]+)(?:\|([^\]]+))?\]\]')
+    # Uses non-greedy matching to correctly handle ] in target (e.g., [[file]name]])
+    WIKILINK_PATTERN = re.compile(r'\[\[(.+?)(?:\|(.+))?\]\]')
 
     # Pattern for image embeds: ![[image.png]] or ![[image.png|alt]]
-    IMAGE_EMBED_PATTERN = re.compile(r'!\[\[([^\]|]+\.(?:png|jpg|jpeg|gif|webp|svg))(?:\|([^\]]+))?\]\]', re.IGNORECASE)
-
-    # Pattern for generic embeds (notes): ![[note]]
-    NOTE_EMBED_PATTERN = re.compile(r'!\[\[([^\]|]+)(?:\|([^\]]+))?\]\]')
+    # Uses non-greedy matching to correctly handle ] in filename
+    IMAGE_EMBED_PATTERN = re.compile(r'!\[\[(.+?\.(?:png|jpg|jpeg|gif|webp|svg))(?:\|(.+))?\]\]', re.IGNORECASE)
 
     def __init__(
         self,
