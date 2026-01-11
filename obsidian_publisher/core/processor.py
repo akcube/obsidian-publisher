@@ -329,6 +329,7 @@ class ContentProcessor:
                 allow_unicode=True,
                 sort_keys=True,
             )
-            return f"---\n{frontmatter_str}---\n{processed.content}"
+            content = processed.content.rstrip('\n')
+            return f"---\n{frontmatter_str}---\n{content}\n"
         else:
-            return processed.content
+            return processed.content.rstrip('\n') + "\n"

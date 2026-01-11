@@ -289,7 +289,7 @@ class TestContentProcessor:
         output = processor.build_output(processed)
 
         # Empty frontmatter should not be rendered
-        assert output == "Just content"
+        assert output == "Just content\n"
 
     def test_preserves_code_blocks(self, link_index, sample_note):
         processor = ContentProcessor(

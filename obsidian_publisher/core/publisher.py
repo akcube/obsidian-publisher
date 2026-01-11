@@ -454,13 +454,15 @@ def create_publisher_from_config(config_path: Path) -> Publisher:
     # Tag transform
     tag_config = raw_config.get('tag_transform', {})
     if tag_config:
-        from obsidian_publisher.transforms.tags import filter_by_prefix, replace_separator, compose
+        from obsidian_publisher.transforms.tags import filter_by_prefix, replace_separator, sort_tags, compose
         transforms = []
         if 'prefixes' in tag_config:
             transforms.append(filter_by_prefix(*tag_config['prefixes']))
         if 'replace_separator' in tag_config:
             old, new = tag_config['replace_separator']
             transforms.append(replace_separator(old, new))
+        # Always sort tags at the end
+        transforms.append(sort_tags())
         if transforms:
             tag_transform = compose(*transforms)
 

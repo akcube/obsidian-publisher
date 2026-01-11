@@ -58,6 +58,15 @@ def replace_separator(old: str = "/", new: str = "-") -> TagTransform:
     return transform
 
 
+def sort_tags() -> TagTransform:
+    """Create a transform that sorts tags alphabetically.
+
+    Returns:
+        A transform function that sorts tags
+    """
+    return lambda tags: sorted(tags)
+
+
 def compose(*transforms: TagTransform) -> TagTransform:
     """Chain multiple tag transforms together.
 
