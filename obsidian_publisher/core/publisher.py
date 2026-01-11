@@ -138,6 +138,9 @@ class Publisher:
         # Discover all publishable notes
         notes = self.discovery.discover_all()
 
+        # Include any discovery errors in result
+        result.failures.extend(self.discovery.errors)
+
         # Track all referenced images
         all_referenced_images: Set[str] = set()
 
