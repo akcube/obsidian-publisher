@@ -3,6 +3,7 @@
 from pathlib import Path
 from typing import List, Optional, Set, Tuple
 from PIL import Image
+import inflection
 import os
 
 
@@ -141,10 +142,11 @@ class ImageOptimizer:
         if not image_dir.exists():
             return []
 
-        # Normalize referenced images to just basenames without extension
+        # Normalize referenced images to slugified basenames without extension
         ref_basenames = set()
         for img in referenced_images:
-            ref_basenames.add(Path(img).stem)
+            # Slugify to match the output filenames
+            ref_basenames.add(inflection.parameterize(Path(img).stem))
 
         orphans = []
         for img_path in image_dir.iterdir():
