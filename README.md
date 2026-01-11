@@ -181,14 +181,15 @@ print(f"Failed: {result.failed}")
 
 ```python
 from obsidian_publisher.transforms.links import absolute_link
-from obsidian_publisher.transforms.tags import filter_by_prefix, replace_separator, compose
+from obsidian_publisher.transforms.tags import filter_by_prefix, replace_separator, sort_tags, compose
 from obsidian_publisher.transforms.frontmatter import hugo_frontmatter
 
 # Create custom transforms
 link_transform = absolute_link("/blog")
 tag_transform = compose(
     filter_by_prefix("domain", "type"),
-    replace_separator("/", "-")
+    replace_separator("/", "-"),
+    sort_tags(),  # Sort tags alphabetically
 )
 frontmatter_transform = hugo_frontmatter("Author Name")
 
@@ -237,6 +238,9 @@ def filter_by_prefix(*prefixes: str) -> TagTransform:
     def transform(tags: List[str]) -> List[str]:
         return [t for t in tags if any(t.startswith(p) for p in prefixes)]
     return transform
+
+def sort_tags() -> TagTransform:
+    return lambda tags: sorted(tags)
 ```
 
 ## Development
