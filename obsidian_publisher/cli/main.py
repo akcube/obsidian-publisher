@@ -4,7 +4,17 @@ import sys
 from pathlib import Path
 import click
 
-from obsidian_publisher.core.publisher import create_publisher_from_config, PublishResult
+from obsidian_publisher.core.publisher import create_publisher_from_config, Publisher, PublishResult
+
+
+def print_discovery_errors(publisher: Publisher) -> None:
+    """Print any discovery errors that occurred."""
+    errors = publisher.discovery.errors
+    if errors:
+        click.echo(click.style(f"Parse errors ({len(errors)}):", fg='yellow'))
+        for err in errors:
+            click.echo(f"  - {err.path.name}: {err.error}")
+        click.echo()
 
 
 def print_result(result: PublishResult) -> None:
@@ -69,6 +79,7 @@ def republish(config: Path, dry_run: bool):
     try:
         publisher = create_publisher_from_config(config)
         result = publisher.republish(dry_run=dry_run)
+        print_discovery_errors(publisher)
         print_result(result)
 
         if result.failures:
@@ -106,6 +117,7 @@ def add(note_name: str, config: Path, dry_run: bool):
     try:
         publisher = create_publisher_from_config(config)
         result = publisher.add(note_name, dry_run=dry_run)
+        print_discovery_errors(publisher)
         print_result(result)
 
         if result.failures:
@@ -143,6 +155,7 @@ def delete(note_name: str, config: Path, dry_run: bool):
     try:
         publisher = create_publisher_from_config(config)
         result = publisher.delete(note_name, dry_run=dry_run)
+        print_discovery_errors(publisher)
         print_result(result)
 
         if result.failures:

@@ -56,6 +56,13 @@ class ProcessedNote:
 
 
 @dataclass
+class DiscoveryError:
+    """A failed note discovery/parsing operation."""
+    path: Path
+    error: str
+
+
+@dataclass
 class PublishFailure:
     """A failed publish operation."""
     note_title: str

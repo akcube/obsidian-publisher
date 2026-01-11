@@ -6,7 +6,7 @@ import yaml
 import inflection
 import datetime
 
-from obsidian_publisher.core.models import NoteContext, NoteMetadata
+from obsidian_publisher.core.models import DiscoveryError, NoteContext, NoteMetadata
 
 
 class VaultDiscovery:
@@ -18,6 +18,7 @@ class VaultDiscovery:
         source_dirs: Optional[List[str]] = None,
         required_tags: Optional[List[str]] = None,
         excluded_tags: Optional[List[str]] = None,
+        fail_fast: bool = False,
     ):
         """Initialize VaultDiscovery.
 
@@ -26,6 +27,7 @@ class VaultDiscovery:
             source_dirs: Subdirectories within vault to scan (default: vault root)
             required_tags: Tags that must be present for a note to be publishable
             excluded_tags: Tags that exclude a note from publishing
+            fail_fast: If True, raise exception on first parse error
         """
         self.vault_path = Path(vault_path)
         self.source_dirs = [
@@ -33,6 +35,8 @@ class VaultDiscovery:
         ]
         self.required_tags = set(required_tags or [])
         self.excluded_tags = set(excluded_tags or [])
+        self.fail_fast = fail_fast
+        self.errors: List[DiscoveryError] = []
 
     def discover_all(self) -> List[NoteMetadata]:
         """Find all publishable notes in the vault.
@@ -152,7 +156,9 @@ class VaultDiscovery:
                 publication_date=publication_date,
             )
         except Exception as e:
-            print(f"Warning: Failed to parse {file_path.name}: {e}")
+            self.errors.append(DiscoveryError(path=file_path, error=str(e)))
+            if self.fail_fast:
+                raise
             return None
 
     def _parse_frontmatter(self, file_path: Path) -> Dict:
@@ -162,7 +168,10 @@ class VaultDiscovery:
             file_path: Path to the markdown file
 
         Returns:
-            Frontmatter dict (empty if not found or invalid)
+            Frontmatter dict (empty if no frontmatter found)
+
+        Raises:
+            yaml.YAMLError: If frontmatter YAML is malformed
         """
         with open(file_path, 'r', encoding='utf-8') as f:
             content = f.read()
@@ -170,20 +179,15 @@ class VaultDiscovery:
         if not content.startswith('---'):
             return {}
 
-        try:
-            parts = content.split('---\n', 2)
-            if len(parts) < 3:
-                return {}
-
-            frontmatter = yaml.safe_load(parts[1])
-            if not isinstance(frontmatter, dict):
-                return {}
-
-            return frontmatter
-
-        except yaml.YAMLError as e:
-            print(f"Warning: Failed to parse YAML in {file_path.name}: {e}")
+        parts = content.split('---\n', 2)
+        if len(parts) < 3:
             return {}
+
+        frontmatter = yaml.safe_load(parts[1])
+        if not isinstance(frontmatter, dict):
+            return {}
+
+        return frontmatter
 
     def _extract_tags(self, frontmatter: Dict) -> List[str]:
         """Extract all tags from frontmatter.

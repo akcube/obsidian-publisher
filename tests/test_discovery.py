@@ -268,10 +268,12 @@ Content.
 """)
 
         discovery = VaultDiscovery(temp_vault)
-        # Should handle gracefully, return None or note with empty frontmatter
         result = discovery.get_note("bad")
-        # The note should still be processed with empty frontmatter
-        assert result is not None or result is None  # Either behavior is acceptable
+
+        assert result is None
+        assert len(discovery.errors) == 1
+        assert discovery.errors[0].path == note
+        assert "unclosed" in discovery.errors[0].error.lower() or "bracket" in discovery.errors[0].error.lower()
 
     def test_frontmatter_without_closing(self, temp_vault):
         note = temp_vault / "unclosed.md"
@@ -306,3 +308,69 @@ Content.
         # Dates should be converted to strings
         assert "2024" in result.creation_date
         assert "2024-02-01" in result.publication_date
+
+
+class TestErrorHandling:
+    """Tests for error handling and collection."""
+
+    @pytest.fixture
+    def temp_vault(self):
+        temp_dir = tempfile.mkdtemp()
+        yield Path(temp_dir)
+        shutil.rmtree(temp_dir)
+
+    def test_errors_collected_during_discover_all(self, temp_vault):
+        (temp_vault / "good.md").write_text("""---
+title: Good Note
+tags:
+  - evergreen
+---
+Content.
+""")
+        (temp_vault / "bad.md").write_text("""---
+title: Bad YAML
+tags: [unclosed
+---
+Content.
+""")
+
+        discovery = VaultDiscovery(temp_vault)
+        notes = discovery.discover_all()
+
+        assert len(notes) == 1
+        assert notes[0].title == "Good Note"
+        assert len(discovery.errors) == 1
+        assert discovery.errors[0].path.name == "bad.md"
+
+    def test_fail_fast_raises_on_first_error(self, temp_vault):
+        (temp_vault / "bad.md").write_text("""---
+tags: [unclosed
+---
+""")
+
+        discovery = VaultDiscovery(temp_vault, fail_fast=True)
+
+        with pytest.raises(Exception):
+            discovery.discover_all()
+
+    def test_multiple_errors_collected(self, temp_vault):
+        (temp_vault / "bad1.md").write_text("""---
+tags: [unclosed
+---
+""")
+        (temp_vault / "bad2.md").write_text("""---
+title: Also Bad
+invalid yaml: [
+---
+""")
+        (temp_vault / "good.md").write_text("""---
+title: Good
+---
+Content.
+""")
+
+        discovery = VaultDiscovery(temp_vault)
+        notes = discovery.discover_all()
+
+        assert len(notes) == 1
+        assert len(discovery.errors) == 2
