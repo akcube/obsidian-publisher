@@ -21,7 +21,8 @@ def print_result(result: PublishResult) -> None:
     if result.failures:
         click.echo(click.style(f"Failed ({len(result.failures)}):", fg='red'))
         for failure in result.failures:
-            click.echo(f"  - {failure.note_title}: {failure.error}")
+            name = failure.title or failure.path.name
+            click.echo(f"  - {name}: {failure.error}")
 
     if result.removed_image_paths:
         click.echo(click.style(f"Orphans removed ({len(result.removed_image_paths)}):", fg='yellow'))

@@ -8,7 +8,7 @@ import shutil
 
 import inflection
 
-from obsidian_publisher.core.models import NoteMetadata, ProcessedNote, PublishFailure, PublishResult
+from obsidian_publisher.core.models import NoteError, NoteMetadata, ProcessedNote, PublishResult
 from obsidian_publisher.core.discovery import VaultDiscovery
 from obsidian_publisher.core.processor import ContentProcessor, LinkIndex
 from obsidian_publisher.images.optimizer import ImageOptimizer
@@ -34,6 +34,7 @@ class PublisherConfig:
     optimize_images: bool = True
     max_image_width: int = 1920
     webp_quality: int = 85
+    fail_fast: bool = False
 
 
 class Publisher:
@@ -69,12 +70,15 @@ class Publisher:
         self.vault_path = Path(config.vault_path)
         self.output_path = Path(config.output_path)
 
+        self.fail_fast = config.fail_fast
+
         # Initialize components
         self.discovery = VaultDiscovery(
             vault_path=self.vault_path,
             source_dirs=config.source_dirs,
             required_tags=config.required_tags,
             excluded_tags=config.excluded_tags,
+            fail_fast=config.fail_fast,
         )
 
         # Build link index
@@ -134,6 +138,9 @@ class Publisher:
         # Discover all publishable notes
         notes = self.discovery.discover_all()
 
+        # Include any discovery errors in result
+        result.failures.extend(self.discovery.errors)
+
         # Track all referenced images
         all_referenced_images: Set[str] = set()
 
@@ -143,7 +150,9 @@ class Publisher:
                 all_referenced_images.update(processed.referenced_images)
                 result.published_titles.append(note.title)
             except Exception as e:
-                result.failures.append(PublishFailure(note.title, str(e)))
+                result.failures.append(NoteError(path=note.path, error=str(e), title=note.title))
+                if self.fail_fast:
+                    return result
 
         if not dry_run and self.optimizer:
             all_site_images = all_referenced_images | self._collect_all_referenced_images()
@@ -170,19 +179,19 @@ class Publisher:
 
         note = self.discovery.get_note(note_name)
         if note is None:
-            result.failures.append(PublishFailure(note_name, "Note not found"))
+            result.failures.append(NoteError(path=Path(note_name), error="Note not found"))
             return result
 
         is_pub, reason = self.discovery.is_publishable(note)
         if not is_pub:
-            result.failures.append(PublishFailure(note_name, reason))
+            result.failures.append(NoteError(path=note.path, error=reason, title=note.title))
             return result
 
         try:
             self._publish_note(note, dry_run)
             result.published_titles.append(note.title)
         except Exception as e:
-            result.failures.append(PublishFailure(note.title, str(e)))
+            result.failures.append(NoteError(path=note.path, error=str(e), title=note.title))
 
         return result
 
@@ -207,7 +216,7 @@ class Publisher:
         published_file = self.content_output / f"{slug}.md"
 
         if not published_file.exists():
-            result.failures.append(PublishFailure(note_name, "Published file not found"))
+            result.failures.append(NoteError(path=Path(note_name), error="Published file not found"))
             return result
 
         if not dry_run:

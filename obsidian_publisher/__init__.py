@@ -9,7 +9,7 @@ to various static site generator formats with support for:
 - Frontmatter transformation
 """
 
-from obsidian_publisher.core.models import NoteContext, NoteMetadata, ProcessedNote, PublishFailure, PublishResult
+from obsidian_publisher.core.models import NoteContext, NoteError, NoteMetadata, ProcessedNote, PublishResult
 from obsidian_publisher.core.discovery import VaultDiscovery
 from obsidian_publisher.core.processor import ContentProcessor
 from obsidian_publisher.core.publisher import Publisher
@@ -19,9 +19,9 @@ __version__ = "0.1.0"
 
 __all__ = [
     "NoteContext",
+    "NoteError",
     "NoteMetadata",
     "ProcessedNote",
-    "PublishFailure",
     "PublishResult",
     "VaultDiscovery",
     "ContentProcessor",

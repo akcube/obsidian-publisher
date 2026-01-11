@@ -155,13 +155,13 @@ This is a draft.
         result = publisher.add("Nonexistent Note")
 
         assert len(result.failures) == 1
-        assert "Nonexistent Note" in result.failures[0].note_title
+        assert "Nonexistent Note" in str(result.failures[0].path)
 
     def test_add_draft_note(self, publisher):
         result = publisher.add("Draft Note")
 
         assert len(result.failures) == 1
-        assert "Draft Note" in result.failures[0].note_title
+        assert result.failures[0].title == "Draft Note"
 
     def test_delete_note(self, publisher, temp_output):
         # First publish
