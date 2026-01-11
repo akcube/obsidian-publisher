@@ -140,8 +140,8 @@ This is a draft.
         content_dir = temp_output / "content/posts"
         assert not content_dir.exists() or len(list(content_dir.glob("*.md"))) == 0
 
-    def test_add_specific_note(self, publisher, temp_output):
-        result = publisher.add("First Note")
+    def test_add_specific_note(self, publisher, temp_vault, temp_output):
+        result = publisher.add(str(temp_vault / "note1.md"))
 
         assert len(result.published_titles) == 1
         assert "First Note" in result.published_titles
@@ -151,24 +151,34 @@ This is a draft.
         # Second note should not be published
         assert not (content_dir / "second-note.md").exists()
 
-    def test_add_nonexistent_note(self, publisher):
-        result = publisher.add("Nonexistent Note")
+    def test_add_nonexistent_note(self, publisher, temp_vault):
+        result = publisher.add(str(temp_vault / "nonexistent.md"))
 
         assert len(result.failures) == 1
-        assert "Nonexistent Note" in str(result.failures[0].path)
+        assert "File not found" in result.failures[0].error
 
-    def test_add_draft_note(self, publisher):
-        result = publisher.add("Draft Note")
+    def test_add_draft_note(self, publisher, temp_vault):
+        result = publisher.add(str(temp_vault / "draft.md"))
 
         assert len(result.failures) == 1
         assert result.failures[0].title == "Draft Note"
 
-    def test_delete_note(self, publisher, temp_output):
+    def test_add_non_markdown_file(self, publisher, temp_vault):
+        # Create a non-.md file
+        txt_file = temp_vault / "notes.txt"
+        txt_file.write_text("not markdown")
+
+        result = publisher.add(str(txt_file))
+
+        assert len(result.failures) == 1
+        assert "Not a markdown file" in result.failures[0].error
+
+    def test_delete_note(self, publisher, temp_vault, temp_output):
         # First publish
         publisher.republish()
 
         # Then delete
-        result = publisher.delete("First Note")
+        result = publisher.delete(str(temp_vault / "note1.md"))
 
         assert "First Note" in result.published_titles
 
@@ -177,18 +187,18 @@ This is a draft.
         # Second note should still exist
         assert (content_dir / "second-note.md").exists()
 
-    def test_delete_cleans_orphan_images(self, publisher, temp_output):
+    def test_delete_cleans_orphan_images(self, publisher, temp_vault, temp_output):
         # First publish
         publisher.republish()
 
         # Then delete the only note that references the image
-        result = publisher.delete("First Note")
+        result = publisher.delete(str(temp_vault / "note1.md"))
 
         # Image should be cleaned up (orphaned)
         assert len(result.removed_image_paths) > 0
 
-    def test_delete_nonexistent(self, publisher, temp_output):
-        result = publisher.delete("Nonexistent Note")
+    def test_delete_nonexistent(self, publisher, temp_vault, temp_output):
+        result = publisher.delete(str(temp_vault / "nonexistent.md"))
 
         assert len(result.failures) == 1
 

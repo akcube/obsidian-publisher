@@ -100,53 +100,41 @@ Content here.
         # Should find note1 and note4 (evergreen, not draft)
         assert len(notes) == 2
 
-    def test_get_note_by_filename(self, temp_vault):
+    def test_get_note_metadata_by_path(self, temp_vault):
         discovery = VaultDiscovery(temp_vault)
-        note = discovery.get_note("note1.md")
+        note = discovery.get_note_metadata(temp_vault / "note1.md")
         assert note is not None
         assert note.title == "Test Note One"
 
-    def test_get_note_by_filename_without_extension(self, temp_vault):
+    def test_get_note_metadata_not_found(self, temp_vault):
         discovery = VaultDiscovery(temp_vault)
-        note = discovery.get_note("note1")
-        assert note is not None
-        assert note.title == "Test Note One"
-
-    def test_get_note_by_title(self, temp_vault):
-        discovery = VaultDiscovery(temp_vault)
-        note = discovery.get_note("Test Note One")
-        assert note is not None
-        assert note.path.name == "note1.md"
-
-    def test_get_note_not_found(self, temp_vault):
-        discovery = VaultDiscovery(temp_vault)
-        note = discovery.get_note("nonexistent")
+        note = discovery.get_note_metadata(temp_vault / "nonexistent.md")
         assert note is None
 
     def test_is_publishable_with_required_tags(self, temp_vault):
         discovery = VaultDiscovery(temp_vault, required_tags=["evergreen"])
-        note = discovery.get_note("note1")
+        note = discovery.get_note_metadata(temp_vault / "note1.md")
         is_pub, reason = discovery.is_publishable(note)
         assert is_pub is True
         assert reason == "OK"
 
     def test_is_publishable_missing_required_tags(self, temp_vault):
         discovery = VaultDiscovery(temp_vault, required_tags=["evergreen"])
-        note = discovery.get_note("note2")
+        note = discovery.get_note_metadata(temp_vault / "note2.md")
         is_pub, reason = discovery.is_publishable(note)
         assert is_pub is False
         assert "Missing required tags" in reason
 
     def test_is_publishable_has_excluded_tags(self, temp_vault):
         discovery = VaultDiscovery(temp_vault, excluded_tags=["draft"])
-        note = discovery.get_note("note2")
+        note = discovery.get_note_metadata(temp_vault / "note2.md")
         is_pub, reason = discovery.is_publishable(note)
         assert is_pub is False
         assert "excluded tags" in reason
 
     def test_note_metadata_has_correct_fields(self, temp_vault):
         discovery = VaultDiscovery(temp_vault)
-        note = discovery.get_note("note1")
+        note = discovery.get_note_metadata(temp_vault / "note1.md")
 
         assert note.title == "Test Note One"
         assert note.slug == "test-note-one"
@@ -159,7 +147,7 @@ Content here.
 
     def test_note_without_frontmatter(self, temp_vault):
         discovery = VaultDiscovery(temp_vault)
-        note = discovery.get_note("note3")
+        note = discovery.get_note_metadata(temp_vault / "note3.md")
 
         assert note is not None
         assert note.title == "note3"  # Falls back to filename
@@ -234,18 +222,10 @@ tags:
 
     def test_string_tag_format(self, temp_vault):
         discovery = VaultDiscovery(temp_vault)
-        note = discovery.get_note("note4")
+        note = discovery.get_note_metadata(temp_vault / "note4.md")
 
         assert note is not None
         assert "evergreen" in note.tags
-
-    def test_get_note_by_full_path(self, temp_vault):
-        discovery = VaultDiscovery(temp_vault)
-        full_path = str(temp_vault / "note1.md")
-        note = discovery.get_note(full_path)
-
-        assert note is not None
-        assert note.title == "Test Note One"
 
 
 class TestFrontmatterParsing:
@@ -268,7 +248,7 @@ Content.
 """)
 
         discovery = VaultDiscovery(temp_vault)
-        result = discovery.get_note("bad")
+        result = discovery.get_note_metadata(note)
 
         assert result is None
         assert len(discovery.errors) == 1
@@ -286,7 +266,7 @@ Content without closing frontmatter.
 """)
 
         discovery = VaultDiscovery(temp_vault)
-        result = discovery.get_note("unclosed")
+        result = discovery.get_note_metadata(note)
         # Should handle gracefully
         assert result is not None
 
@@ -302,7 +282,7 @@ Content.
 """)
 
         discovery = VaultDiscovery(temp_vault)
-        result = discovery.get_note("dated")
+        result = discovery.get_note_metadata(note)
 
         assert result is not None
         # Dates should be converted to strings

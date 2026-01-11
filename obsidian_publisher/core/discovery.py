@@ -67,41 +67,18 @@ class VaultDiscovery:
 
         return publishable
 
-    def get_note(self, name_or_path: str) -> Optional[NoteMetadata]:
-        """Get a single note by name or path.
+    def get_note_metadata(self, file_path: Path) -> Optional[NoteMetadata]:
+        """Parse a note file and extract metadata.
+
+        This is the public interface for parsing a single note by path.
 
         Args:
-            name_or_path: Note title, filename (with or without .md), or full path
+            file_path: Path to the markdown file
 
         Returns:
-            NoteMetadata if found, None otherwise
+            NoteMetadata or None if parsing fails
         """
-        # Try as full path first
-        path = Path(name_or_path)
-        if path.exists() and path.suffix == '.md':
-            return self._get_note_metadata(path)
-
-        stem = Path(name_or_path).stem
-        filename = f"{stem}.md"
-        search_name = stem.lower()
-
-        # Search all source directories
-        for source_dir in self.source_dirs:
-            if not source_dir.exists():
-                continue
-
-            # Try as filename in source_dir
-            note_path = source_dir / filename
-            if note_path.exists():
-                return self._get_note_metadata(note_path)
-
-            # Try to find by title match
-            for note_path in source_dir.glob("*.md"):
-                metadata = self._get_note_metadata(note_path)
-                if metadata and metadata.title.lower() == search_name:
-                    return metadata
-
-        return None
+        return self._get_note_metadata(file_path)
 
     def is_publishable(self, note: NoteMetadata) -> Tuple[bool, str]:
         """Check if a note meets publishing criteria.

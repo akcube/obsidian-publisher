@@ -94,28 +94,28 @@ required_tags:
         content_dir = temp_output / "content/posts"
         assert not content_dir.exists() or len(list(content_dir.glob("*.md"))) == 0
 
-    def test_add(self, config_file, temp_output):
+    def test_add(self, config_file, temp_vault, temp_output):
         runner = CliRunner()
-        result = runner.invoke(cli, ['add', 'Test Note', '-c', str(config_file)])
+        result = runner.invoke(cli, ['add', str(temp_vault / "note.md"), '-c', str(config_file)])
 
         assert result.exit_code == 0
         assert 'Published' in result.output
 
-    def test_add_nonexistent(self, config_file):
+    def test_add_nonexistent(self, config_file, temp_vault):
         runner = CliRunner()
-        result = runner.invoke(cli, ['add', 'Nonexistent', '-c', str(config_file)])
+        result = runner.invoke(cli, ['add', str(temp_vault / "nonexistent.md"), '-c', str(config_file)])
 
         assert result.exit_code == 1
         assert 'Failed' in result.output
 
-    def test_delete(self, config_file, temp_output):
+    def test_delete(self, config_file, temp_vault, temp_output):
         runner = CliRunner()
 
         # First publish
         runner.invoke(cli, ['republish', '-c', str(config_file)])
 
         # Then delete
-        result = runner.invoke(cli, ['delete', 'Test Note', '-c', str(config_file)])
+        result = runner.invoke(cli, ['delete', str(temp_vault / "note.md"), '-c', str(config_file)])
 
         assert result.exit_code == 0
 
