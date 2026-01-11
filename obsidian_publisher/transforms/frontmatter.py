@@ -8,18 +8,18 @@ import titlecase as tc
 from typing import Any, Callable, Dict, List, Optional, TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from obsidian_publisher.core.models import NoteMetadata
+    from obsidian_publisher.core.models import ProcessedNote
 
-FrontmatterTransform = Callable[[Dict[str, Any], "NoteMetadata"], Dict[str, Any]]
+FrontmatterTransform = Callable[[Dict[str, Any], "ProcessedNote"], Dict[str, Any]]
 
 
 def identity() -> FrontmatterTransform:
     """Create a pass-through transform that returns frontmatter unchanged.
 
     Returns:
-        A transform function (frontmatter, metadata) -> frontmatter
+        A transform function (frontmatter, processed) -> frontmatter
     """
-    def transform(fm: Dict[str, Any], meta: "NoteMetadata") -> Dict[str, Any]:
+    def transform(fm: Dict[str, Any], processed: "ProcessedNote") -> Dict[str, Any]:
         return fm.copy()
     return transform
 
@@ -43,7 +43,7 @@ def prune_and_add(
     Returns:
         A transform function
     """
-    def transform(fm: Dict[str, Any], meta: "NoteMetadata") -> Dict[str, Any]:
+    def transform(fm: Dict[str, Any], processed: "ProcessedNote") -> Dict[str, Any]:
         if keep_keys is not None:
             result = {k: v for k, v in fm.items() if k in keep_keys}
         elif remove_keys is not None:
@@ -70,8 +70,9 @@ def hugo_frontmatter(author: Optional[str] = None) -> FrontmatterTransform:
     Returns:
         A transform function for Hugo frontmatter
     """
-    def transform(fm: Dict[str, Any], meta: "NoteMetadata") -> Dict[str, Any]:
-        # Apply title case and replace semicolons with colons (for proper display)
+    def transform(fm: Dict[str, Any], processed: "ProcessedNote") -> Dict[str, Any]:
+        meta = processed.metadata
+        # Semicolons in titles break YAML parsing, replace with colons
         title = tc.titlecase(meta.title).replace(';', ':')
         result: Dict[str, Any] = {
             'title': title,
@@ -80,7 +81,8 @@ def hugo_frontmatter(author: Optional[str] = None) -> FrontmatterTransform:
         }
         if author:
             result['author'] = author
-        if meta.processed_tags:
-            result['tags'] = meta.processed_tags
+        # Use processed.tags (transformed) not meta.tags (original)
+        if processed.tags:
+            result['tags'] = processed.tags
         return result
     return transform

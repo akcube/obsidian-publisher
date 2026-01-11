@@ -2,28 +2,55 @@
 
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Set, Tuple
+from typing import Any, Dict, List, Optional, Tuple
+
+
+@dataclass
+class NoteContext:
+    """Cheapest possible note reference - just location.
+
+    Provides lazy content loading to avoid reading all notes into memory
+    during discovery.
+    """
+    path: Path
+
+    def read_raw(self) -> str:
+        """Read file contents on demand."""
+        return self.path.read_text(encoding='utf-8')
 
 
 @dataclass
 class NoteMetadata:
-    """Metadata for an Obsidian note."""
-    path: Path
+    """Parsed note metadata - what we learn from reading the file once.
+
+    Does NOT store content - get it via context.read_raw() when needed.
+    Does NOT store processed_tags - that belongs in ProcessedNote.
+    """
+    context: NoteContext
     title: str
     slug: str
     frontmatter: Dict[str, Any]
-    content: str
     tags: List[str]
     creation_date: str
     publication_date: str
-    processed_tags: Optional[List[str]] = None
+
+    @property
+    def path(self) -> Path:
+        """Convenience accessor for the note's path."""
+        return self.context.path
 
 
 @dataclass
-class ProcessedContent:
-    """Result of processing markdown content."""
+class ProcessedNote:
+    """Result of transforming a note for publishing.
+
+    Contains the transformed content, frontmatter, and tags,
+    along with a reference to the original metadata.
+    """
+    metadata: NoteMetadata
     content: str
     frontmatter: Dict[str, Any]
+    tags: List[str]
     referenced_images: List[str]
     missing_links: List[str]
 
