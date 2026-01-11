@@ -1,9 +1,10 @@
 # Obsidian Publisher
 
+[![PyPI](https://img.shields.io/pypi/v/obsidian-publisher)](https://pypi.org/project/obsidian-publisher/)
+[![PyPI - Downloads](https://img.shields.io/pypi/dm/obsidian-publisher)](https://pypi.org/project/obsidian-publisher/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![GitHub last commit](https://img.shields.io/github/last-commit/akcube/obsidian-publisher)](https://github.com/akcube/obsidian-publisher/commits/master)
-[![GitHub repo size](https://img.shields.io/github/repo-size/akcube/obsidian-publisher)](https://github.com/akcube/obsidian-publisher)
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 
 A modular Python library for publishing notes from an Obsidian vault to static site generators like Hugo.
