@@ -151,7 +151,9 @@ class ImageOptimizer:
         orphans = []
         for img_path in image_dir.iterdir():
             if img_path.is_file() and img_path.suffix.lower() in {'.webp', '.png', '.jpg', '.jpeg', '.gif'}:
-                if img_path.stem not in ref_basenames:
+                # Slugify disk filename stem to match against slugified references
+                disk_stem = inflection.parameterize(img_path.stem)
+                if disk_stem not in ref_basenames:
                     orphans.append(img_path)
 
         return orphans
