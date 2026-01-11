@@ -195,6 +195,7 @@ class TestContentProcessor:
 
         result = processor.process(sample_note)
 
+        # Filename and alt text are slugified
         assert "![diagram](/images/diagram.png)" in result.content
         assert "diagram.png" in result.referenced_images
 
@@ -208,7 +209,8 @@ class TestContentProcessor:
 
         result = processor.process(sample_note)
 
-        assert "![My vacation photo](/img/photo.jpg)" in result.content
+        # Alt text is slugified
+        assert "![my-vacation-photo](/img/photo.jpg)" in result.content
         assert "photo.jpg" in result.referenced_images
 
     def test_multiple_images(self, link_index, sample_note):
@@ -327,7 +329,8 @@ For more details, see [[Second Note#Details|the details section]].
         result = processor.process(sample_note)
 
         assert "[First Note](/posts/first-note)" in result.content
-        assert "![System architecture](/static/images/architecture.png)" in result.content
+        # Alt text is slugified
+        assert "![system-architecture](/static/images/architecture.png)" in result.content
         assert "[the details section](/posts/second-note#details)" in result.content
         assert "architecture.png" in result.referenced_images
 

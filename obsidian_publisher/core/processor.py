@@ -71,6 +71,7 @@ class ContentProcessor:
         frontmatter_transform: Optional[FrontmatterTransform] = None,
         image_path_prefix: str = "/images",
         warn_on_missing_link: bool = True,
+        output_image_extension: Optional[str] = None,
     ):
         """Initialize ContentProcessor.
 
@@ -81,6 +82,8 @@ class ContentProcessor:
             frontmatter_transform: Optional transform for processing frontmatter
             image_path_prefix: Prefix for image URLs in output
             warn_on_missing_link: Whether to warn about unresolved wikilinks
+            output_image_extension: Extension for output images (e.g., ".webp").
+                                   If None, keeps original extension.
         """
         self.link_index = link_index
         self.link_transform = link_transform
@@ -88,6 +91,7 @@ class ContentProcessor:
         self.frontmatter_transform = frontmatter_transform
         self.image_path_prefix = image_path_prefix.rstrip('/')
         self.warn_on_missing_link = warn_on_missing_link
+        self.output_image_extension = output_image_extension
 
     def process(self, note: NoteMetadata) -> ProcessedContent:
         """Process a note's content for publishing.
@@ -157,9 +161,22 @@ class ContentProcessor:
 
             images.add(image_name)
 
+            # Slugify the filename stem
+            stem = Path(image_name).stem
+            slug = inflection.parameterize(stem)
+
+            # Determine output extension
+            if self.output_image_extension:
+                ext = self.output_image_extension
+            else:
+                ext = Path(image_name).suffix.lower()
+
+            # Slugify alt text too
+            alt_slug = inflection.parameterize(alt_text)
+
             # Convert to markdown image syntax
-            image_url = f"{self.image_path_prefix}/{image_name}"
-            return f"![{alt_text}]({image_url})"
+            image_url = f"{self.image_path_prefix}/{slug}{ext}"
+            return f"![{alt_slug}]({image_url})"
 
         result = self.IMAGE_EMBED_PATTERN.sub(replace_image, content)
         return result, images
@@ -185,8 +202,15 @@ class ContentProcessor:
             if any(target.lower().endswith(ext) for ext in ('.png', '.jpg', '.jpeg', '.gif', '.webp', '.svg')):
                 # This is an image that wasn't caught - convert it
                 alt_text = display or Path(target).stem
-                image_url = f"{self.image_path_prefix}/{target}"
-                return f"![{alt_text}]({image_url})"
+                stem = Path(target).stem
+                slug = inflection.parameterize(stem)
+                if self.output_image_extension:
+                    ext = self.output_image_extension
+                else:
+                    ext = Path(target).suffix.lower()
+                alt_slug = inflection.parameterize(alt_text)
+                image_url = f"{self.image_path_prefix}/{slug}{ext}"
+                return f"![{alt_slug}]({image_url})"
 
             # Handle section links (e.g., [[Note#Section]])
             section = ""
@@ -237,7 +261,7 @@ class ContentProcessor:
                 processed.frontmatter,
                 default_flow_style=False,
                 allow_unicode=True,
-                sort_keys=False,
+                sort_keys=True,
             )
             return f"---\n{frontmatter_str}---\n{processed.content}"
         else:

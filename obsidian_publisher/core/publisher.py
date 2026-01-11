@@ -6,6 +6,8 @@ from typing import Dict, List, Optional, Set
 import json
 import shutil
 
+import inflection
+
 from obsidian_publisher.core.models import NoteMetadata, ProcessedContent, PublishResult
 from obsidian_publisher.core.discovery import VaultDiscovery
 from obsidian_publisher.core.processor import ContentProcessor, LinkIndex
@@ -85,6 +87,7 @@ class Publisher:
             tag_transform=tag_transform,
             frontmatter_transform=frontmatter_transform,
             image_path_prefix=config.image_path_prefix,
+            output_image_extension=".webp" if config.optimize_images else None,
         )
 
         # Initialize image optimizer
@@ -232,6 +235,49 @@ class Publisher:
 
         return result
 
+    def _get_existing_frontmatter(self, slug: str) -> Optional[Dict]:
+        """Get the frontmatter from an existing published file.
+
+        Args:
+            slug: The note slug
+
+        Returns:
+            The existing frontmatter dict, or None if not found
+        """
+        import yaml as yaml_lib
+
+        output_file = self.content_output / f"{slug}.md"
+        if not output_file.exists():
+            return None
+
+        try:
+            content = output_file.read_text(encoding='utf-8')
+            if content.startswith('---'):
+                parts = content.split('---', 2)
+                if len(parts) >= 2:
+                    return yaml_lib.safe_load(parts[1])
+        except Exception:
+            pass
+
+        return None
+
+    def _format_date_value(self, date_val) -> Optional[str]:
+        """Format a date value as a string.
+
+        Args:
+            date_val: Date value (string or datetime)
+
+        Returns:
+            Formatted date string
+        """
+        if isinstance(date_val, str):
+            return date_val
+        # Handle datetime objects
+        import datetime
+        if hasattr(date_val, 'strftime'):
+            return date_val.strftime('%Y-%m-%d %H:%M:%S%z')
+        return None
+
     def _publish_note(self, note: NoteMetadata, dry_run: bool) -> ProcessedContent:
         """Publish a single note.
 
@@ -244,6 +290,15 @@ class Publisher:
         """
         # Process content
         processed = self.processor.process(note)
+
+        # Preserve existing date fields if available
+        existing_fm = self._get_existing_frontmatter(note.slug)
+        if existing_fm:
+            for field in ('date', 'doc'):
+                if field in existing_fm and field in processed.frontmatter:
+                    formatted = self._format_date_value(existing_fm[field])
+                    if formatted:
+                        processed.frontmatter[field] = formatted
 
         # Build output
         output_content = self.processor.build_output(processed)
@@ -277,11 +332,13 @@ class Publisher:
             return
 
         if self.optimizer:
+            # Slugify the output name to match markdown references
+            output_name = inflection.parameterize(Path(image_name).stem)
             # Optimize and create WebP + PNG versions
             self.optimizer.optimize(
                 source_path,
                 self.image_output,
-                output_name=Path(image_name).stem,
+                output_name=output_name,
             )
         else:
             # Just copy the original
