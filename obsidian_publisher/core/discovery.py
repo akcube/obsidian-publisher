@@ -15,7 +15,7 @@ class VaultDiscovery:
     def __init__(
         self,
         vault_path: Path,
-        source_dir: str = ".",
+        source_dirs: Optional[List[str]] = None,
         required_tags: Optional[List[str]] = None,
         excluded_tags: Optional[List[str]] = None,
     ):
@@ -23,12 +23,14 @@ class VaultDiscovery:
 
         Args:
             vault_path: Path to the Obsidian vault root
-            source_dir: Subdirectory within vault to scan (default: vault root)
+            source_dirs: Subdirectories within vault to scan (default: vault root)
             required_tags: Tags that must be present for a note to be publishable
             excluded_tags: Tags that exclude a note from publishing
         """
         self.vault_path = Path(vault_path)
-        self.source_dir = self.vault_path / source_dir
+        self.source_dirs = [
+            self.vault_path / d for d in (source_dirs or ["."])
+        ]
         self.required_tags = set(required_tags or [])
         self.excluded_tags = set(excluded_tags or [])
 
@@ -38,18 +40,26 @@ class VaultDiscovery:
         Returns:
             List of NoteMetadata for all notes passing the tag filters
         """
-        if not self.source_dir.exists():
-            raise FileNotFoundError(f"Source directory not found: {self.source_dir}")
+        existing_dirs = [d for d in self.source_dirs if d.exists()]
+
+        for d in self.source_dirs:
+            if not d.exists():
+                print(f"Warning: Source directory not found: {d}")
+
+        if not existing_dirs:
+            dirs = ', '.join(str(d) for d in self.source_dirs)
+            raise FileNotFoundError(f"No source directories found: {dirs}")
 
         publishable = []
-        for note_path in self.source_dir.glob("*.md"):
-            metadata = self._get_note_metadata(note_path)
-            if metadata is None:
-                continue
+        for source_dir in existing_dirs:
+            for note_path in source_dir.glob("*.md"):
+                metadata = self._get_note_metadata(note_path)
+                if metadata is None:
+                    continue
 
-            is_pub, _ = self.is_publishable(metadata)
-            if is_pub:
-                publishable.append(metadata)
+                is_pub, _ = self.is_publishable(metadata)
+                if is_pub:
+                    publishable.append(metadata)
 
         return publishable
 
@@ -67,19 +77,25 @@ class VaultDiscovery:
         if path.exists() and path.suffix == '.md':
             return self._get_note_metadata(path)
 
-        # Try as filename in source_dir
-        if not name_or_path.endswith('.md'):
-            name_or_path = name_or_path + '.md'
+        stem = Path(name_or_path).stem
+        filename = f"{stem}.md"
+        search_name = stem.lower()
 
-        note_path = self.source_dir / name_or_path
-        if note_path.exists():
-            return self._get_note_metadata(note_path)
+        # Search all source directories
+        for source_dir in self.source_dirs:
+            if not source_dir.exists():
+                continue
 
-        # Try to find by title match
-        for note_path in self.source_dir.glob("*.md"):
-            metadata = self._get_note_metadata(note_path)
-            if metadata and metadata.title.lower() == name_or_path.replace('.md', '').lower():
-                return metadata
+            # Try as filename in source_dir
+            note_path = source_dir / filename
+            if note_path.exists():
+                return self._get_note_metadata(note_path)
+
+            # Try to find by title match
+            for note_path in source_dir.glob("*.md"):
+                metadata = self._get_note_metadata(note_path)
+                if metadata and metadata.title.lower() == search_name:
+                    return metadata
 
         return None
 

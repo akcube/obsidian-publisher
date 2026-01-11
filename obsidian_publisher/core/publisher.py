@@ -23,7 +23,7 @@ class PublisherConfig:
 
     vault_path: Path
     output_path: Path
-    source_dir: str = "."
+    source_dirs: List[str] = field(default_factory=lambda: ["."])
     content_dir: str = "content/posts"
     image_dir: str = "static/images"
     image_sources: List[str] = field(default_factory=lambda: ["assets"])
@@ -72,7 +72,7 @@ class Publisher:
         # Initialize components
         self.discovery = VaultDiscovery(
             vault_path=self.vault_path,
-            source_dir=config.source_dir,
+            source_dirs=config.source_dirs,
             required_tags=config.required_tags,
             excluded_tags=config.excluded_tags,
         )
@@ -402,10 +402,18 @@ def create_publisher_from_config(config_path: Path) -> Publisher:
     vault_path = Path(raw_config['vault_path']).expanduser()
     output_path = Path(raw_config['output_path']).expanduser()
 
+    # Handle backwards compatibility: source_dirs (new) vs source_dir (old)
+    if 'source_dirs' in raw_config:
+        source_dirs = raw_config['source_dirs']
+    elif 'source_dir' in raw_config:
+        source_dirs = [raw_config['source_dir']]
+    else:
+        source_dirs = ['.']
+
     config = PublisherConfig(
         vault_path=vault_path,
         output_path=output_path,
-        source_dir=raw_config.get('source_dir', '.'),
+        source_dirs=source_dirs,
         content_dir=raw_config.get('content_dir', 'content/posts'),
         image_dir=raw_config.get('image_dir', 'static/images'),
         image_sources=raw_config.get('image_sources', ['assets']),
