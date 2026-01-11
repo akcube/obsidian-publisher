@@ -154,7 +154,8 @@ Content here.
         assert "domain/cs" in note.tags
         assert note.creation_date == "2024-01-01"
         assert note.publication_date == "2024-01-15"
-        assert "# Test Note One" in note.content
+        # Content is accessed via lazy loading
+        assert "# Test Note One" in note.context.read_raw()
 
     def test_note_without_frontmatter(self, temp_vault):
         discovery = VaultDiscovery(temp_vault)
@@ -163,7 +164,8 @@ Content here.
         assert note is not None
         assert note.title == "note3"  # Falls back to filename
         assert note.tags == []
-        assert "# No Frontmatter" in note.content
+        # Content is accessed via lazy loading
+        assert "# No Frontmatter" in note.context.read_raw()
 
     def test_source_dir_subdirectory(self, temp_vault):
         # Create a subdirectory with notes

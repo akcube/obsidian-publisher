@@ -8,7 +8,7 @@ import shutil
 
 import inflection
 
-from obsidian_publisher.core.models import NoteMetadata, ProcessedContent, PublishResult
+from obsidian_publisher.core.models import NoteMetadata, ProcessedNote, PublishResult
 from obsidian_publisher.core.discovery import VaultDiscovery
 from obsidian_publisher.core.processor import ContentProcessor, LinkIndex
 from obsidian_publisher.images.optimizer import ImageOptimizer
@@ -280,7 +280,7 @@ class Publisher:
             return date_val.strftime('%Y-%m-%d %H:%M:%S%z')
         return None
 
-    def _publish_note(self, note: NoteMetadata, dry_run: bool) -> ProcessedContent:
+    def _publish_note(self, note: NoteMetadata, dry_run: bool) -> ProcessedNote:
         """Publish a single note.
 
         Args:
@@ -288,7 +288,7 @@ class Publisher:
             dry_run: If True, don't write files
 
         Returns:
-            ProcessedContent result
+            ProcessedNote result
         """
         # Process content
         processed = self.processor.process(note)

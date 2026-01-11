@@ -10,14 +10,14 @@ Type Aliases:
     TagTransform: Callable[[List[str]], List[str]]
         Takes a list of tags and returns a transformed list.
 
-    FrontmatterTransform: Callable[[Dict[str, Any], NoteMetadata], Dict[str, Any]]
-        Takes (original_frontmatter, note_metadata) and returns transformed frontmatter.
+    FrontmatterTransform: Callable[[Dict[str, Any], ProcessedNote], Dict[str, Any]]
+        Takes (original_frontmatter, processed_note) and returns transformed frontmatter.
 """
 
 from typing import Any, Callable, Dict, List, TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from obsidian_publisher.core.models import NoteMetadata
+    from obsidian_publisher.core.models import ProcessedNote
 
 # Transform type aliases
 LinkTransform = Callable[[str, str], str]
@@ -26,8 +26,8 @@ LinkTransform = Callable[[str, str], str]
 TagTransform = Callable[[List[str]], List[str]]
 """Transform function for tags: tags -> transformed_tags"""
 
-FrontmatterTransform = Callable[[Dict[str, Any], "NoteMetadata"], Dict[str, Any]]
-"""Transform function for frontmatter: (frontmatter, metadata) -> transformed_frontmatter"""
+FrontmatterTransform = Callable[[Dict[str, Any], "ProcessedNote"], Dict[str, Any]]
+"""Transform function for frontmatter: (frontmatter, processed_note) -> transformed_frontmatter"""
 
 # Import factory functions for convenience
 from obsidian_publisher.transforms.links import (

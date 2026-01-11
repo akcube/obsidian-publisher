@@ -6,7 +6,7 @@ import yaml
 import inflection
 import datetime
 
-from obsidian_publisher.core.models import NoteMetadata
+from obsidian_publisher.core.models import NoteContext, NoteMetadata
 
 
 class VaultDiscovery:
@@ -94,12 +94,10 @@ class VaultDiscovery:
         """
         note_tags = set(note.tags)
 
-        # Check for required tags
         if self.required_tags and not self.required_tags.intersection(note_tags):
             missing = ', '.join(self.required_tags)
             return False, f"Missing required tags: {missing}"
 
-        # Check for excluded tags
         excluded_found = self.excluded_tags.intersection(note_tags)
         if excluded_found:
             found = ', '.join(excluded_found)
@@ -110,6 +108,9 @@ class VaultDiscovery:
     def _get_note_metadata(self, file_path: Path) -> Optional[NoteMetadata]:
         """Parse a note file and extract metadata.
 
+        Note: Content is NOT stored in NoteMetadata. Use context.read_raw()
+        when content is needed during processing.
+
         Args:
             file_path: Path to the markdown file
 
@@ -117,66 +118,56 @@ class VaultDiscovery:
             NoteMetadata or None if parsing fails
         """
         try:
-            frontmatter, content = self._parse_frontmatter(file_path)
+            context = NoteContext(path=file_path)
+            frontmatter = self._parse_frontmatter(file_path)
             tags = self._extract_tags(frontmatter)
-
             title = frontmatter.get('title', file_path.stem)
             slug = inflection.parameterize(title)
-
-            # Get dates
             creation_date = self._get_date_string(frontmatter.get('created'))
             publication_date = self._get_date_string(frontmatter.get('date'))
 
             return NoteMetadata(
-                path=file_path,
+                context=context,
                 title=title,
                 slug=slug,
                 frontmatter=frontmatter,
-                content=content,
                 tags=tags,
                 creation_date=creation_date,
                 publication_date=publication_date,
-                processed_tags=None,
             )
         except Exception as e:
             print(f"Warning: Failed to parse {file_path.name}: {e}")
             return None
 
-    def _parse_frontmatter(self, file_path: Path) -> Tuple[Dict, str]:
-        """Parse YAML frontmatter and content from markdown file.
+    def _parse_frontmatter(self, file_path: Path) -> Dict:
+        """Parse YAML frontmatter from markdown file.
 
         Args:
             file_path: Path to the markdown file
 
         Returns:
-            Tuple of (frontmatter_dict, content_string)
+            Frontmatter dict (empty if not found or invalid)
         """
         with open(file_path, 'r', encoding='utf-8') as f:
             content = f.read()
 
-        # Check for YAML frontmatter
         if not content.startswith('---'):
-            return {}, content
+            return {}
 
         try:
-            # Split frontmatter from content
             parts = content.split('---\n', 2)
             if len(parts) < 3:
-                return {}, content
+                return {}
 
-            frontmatter_str = parts[1]
-            content_str = parts[2]
-
-            # Parse YAML
-            frontmatter = yaml.safe_load(frontmatter_str)
+            frontmatter = yaml.safe_load(parts[1])
             if not isinstance(frontmatter, dict):
-                return {}, content
+                return {}
 
-            return frontmatter, content_str
+            return frontmatter
 
         except yaml.YAMLError as e:
             print(f"Warning: Failed to parse YAML in {file_path.name}: {e}")
-            return {}, content
+            return {}
 
     def _extract_tags(self, frontmatter: Dict) -> List[str]:
         """Extract all tags from frontmatter.
