@@ -72,6 +72,8 @@ class ContentProcessor:
         image_path_prefix: str = "/images",
         warn_on_missing_link: bool = True,
         output_image_extension: Optional[str] = None,
+        enable_related_reading: bool = False,
+        link_prefix: str = "",
     ):
         """Initialize ContentProcessor.
 
@@ -84,6 +86,8 @@ class ContentProcessor:
             warn_on_missing_link: Whether to warn about unresolved wikilinks
             output_image_extension: Extension for output images (e.g., ".webp").
                                    If None, keeps original extension.
+            enable_related_reading: Whether to generate Related Reading sections
+            link_prefix: Prefix for absolute links (e.g., "/blog")
         """
         self.link_index = link_index
         self.link_transform = link_transform
@@ -92,6 +96,8 @@ class ContentProcessor:
         self.image_path_prefix = image_path_prefix.rstrip('/')
         self.warn_on_missing_link = warn_on_missing_link
         self.output_image_extension = output_image_extension
+        self.enable_related_reading = enable_related_reading
+        self.link_prefix = link_prefix
 
     def process(self, note: NoteMetadata) -> ProcessedContent:
         """Process a note's content for publishing.
@@ -105,14 +111,23 @@ class ContentProcessor:
         content = note.content
         referenced_images: Set[str] = set()
         missing_links: List[str] = []
+        referenced_notes: Set[str] = set()
 
         # Extract and transform images first
         content, images = self._process_images(content)
         referenced_images.update(images)
 
         # Convert wikilinks to markdown links
-        content, missing = self._process_wikilinks(content)
+        content, missing, refs = self._process_wikilinks(content)
         missing_links.extend(missing)
+        referenced_notes.update(refs)
+
+        # Add related reading section if enabled
+        if self.enable_related_reading:
+            related_section = self._generate_related_section(
+                note.frontmatter, note.slug, referenced_notes
+            )
+            content += related_section
 
         # Process tags
         processed_tags = None
@@ -181,16 +196,17 @@ class ContentProcessor:
         result = self.IMAGE_EMBED_PATTERN.sub(replace_image, content)
         return result, images
 
-    def _process_wikilinks(self, content: str) -> tuple[str, List[str]]:
+    def _process_wikilinks(self, content: str) -> tuple[str, List[str], Set[str]]:
         """Process wikilinks in content.
 
         Args:
             content: Note content
 
         Returns:
-            Tuple of (transformed content, list of missing link targets)
+            Tuple of (transformed content, list of missing link targets, set of referenced note names)
         """
         missing_links = []
+        referenced_notes: Set[str] = set()
 
         # First, skip image embeds (already processed)
         # Process only non-image wikilinks
@@ -214,21 +230,25 @@ class ContentProcessor:
 
             # Handle section links (e.g., [[Note#Section]])
             section = ""
+            note_target = target
             if "#" in target:
-                target, section = target.split("#", 1)
-                target = target.strip()
+                note_target, section = target.split("#", 1)
+                note_target = note_target.strip()
+
+            # Track referenced notes (for related reading filtering)
+            referenced_notes.add(note_target)
 
             # Look up the slug
-            slug = self.link_index.get_slug(target)
+            slug = self.link_index.get_slug(note_target)
 
             if slug is None:
                 # Try generating slug from target
-                slug = inflection.parameterize(target)
+                slug = inflection.parameterize(note_target)
                 if self.warn_on_missing_link:
-                    missing_links.append(target)
+                    missing_links.append(note_target)
 
-            # Use display text or original target
-            link_text = display or target
+            # Use display text or note target (without section)
+            link_text = display or note_target
 
             # Apply link transform
             result = self.link_transform(link_text, slug)
@@ -244,7 +264,53 @@ class ContentProcessor:
             return result
 
         result = self.WIKILINK_PATTERN.sub(replace_link, content)
-        return result, missing_links
+        return result, missing_links, referenced_notes
+
+    def _generate_related_section(
+        self,
+        frontmatter: Dict,
+        note_slug: str,
+        already_linked: Set[str],
+    ) -> str:
+        """Generate Related Reading section from frontmatter.
+
+        Args:
+            frontmatter: Note frontmatter dict
+            note_slug: URL slug of current note (to avoid self-reference)
+            already_linked: Set of note names already linked in content
+
+        Returns:
+            Markdown string for related section
+        """
+        related = frontmatter.get('related', [])
+        if not related:
+            return ""
+
+        # Filter out self-references, already-linked notes, and convert to links
+        related_links = []
+        for item in related:
+            # Extract note name from wikilink format [[Note]] or [[Note|Display]]
+            note_name = item.strip('[]').split('|')[0]
+            slug = inflection.parameterize(note_name)
+
+            # Skip self-references
+            if slug == note_slug:
+                continue
+
+            # Skip notes already linked in content
+            if note_name in already_linked:
+                continue
+
+            related_links.append(f"- [{note_name}]({self.link_prefix}/{slug})")
+
+        if not related_links:
+            return ""
+
+        section = "\n\n---\n\n## Related Reading\n\n"
+        section += "\n".join(related_links)
+        section += "\n"
+
+        return section
 
     def build_output(self, processed: ProcessedContent) -> str:
         """Build final markdown output with frontmatter.

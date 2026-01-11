@@ -4,6 +4,7 @@ These factories create transform functions that process note frontmatter
 for output to various static site generators.
 """
 
+import titlecase as tc
 from typing import Any, Callable, Dict, List, Optional, TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -61,6 +62,7 @@ def hugo_frontmatter(author: Optional[str] = None) -> FrontmatterTransform:
     """Create a transform that produces standard Hugo frontmatter.
 
     Output includes: title, date, doc (creation date), author (optional), tags.
+    Title is converted to proper title case using the titlecase library.
 
     Args:
         author: Author name to include in frontmatter
@@ -69,8 +71,10 @@ def hugo_frontmatter(author: Optional[str] = None) -> FrontmatterTransform:
         A transform function for Hugo frontmatter
     """
     def transform(fm: Dict[str, Any], meta: "NoteMetadata") -> Dict[str, Any]:
+        # Apply title case and replace semicolons with colons (for proper display)
+        title = tc.titlecase(meta.title).replace(';', ':')
         result: Dict[str, Any] = {
-            'title': meta.title,
+            'title': title,
             'date': meta.publication_date,
             'doc': meta.creation_date,
         }
