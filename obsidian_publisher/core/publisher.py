@@ -8,7 +8,7 @@ import shutil
 
 import inflection
 
-from obsidian_publisher.core.models import NoteMetadata, ProcessedNote, PublishResult
+from obsidian_publisher.core.models import NoteMetadata, ProcessedNote, PublishFailure, PublishResult
 from obsidian_publisher.core.discovery import VaultDiscovery
 from obsidian_publisher.core.processor import ContentProcessor, LinkIndex
 from obsidian_publisher.images.optimizer import ImageOptimizer
@@ -137,25 +137,22 @@ class Publisher:
         # Track all referenced images
         all_referenced_images: Set[str] = set()
 
-        # Process each note
         for note in notes:
             try:
                 processed = self._publish_note(note, dry_run)
                 all_referenced_images.update(processed.referenced_images)
-                result.published.append(note.title)
+                result.published_titles.append(note.title)
             except Exception as e:
-                result.failed.append((note.title, str(e)))
+                result.failures.append(PublishFailure(note.title, str(e)))
 
-        # Cleanup orphaned images
         if not dry_run and self.optimizer:
-            # Also include images referenced by other pages (interests, about, etc.)
             all_site_images = all_referenced_images | self._collect_all_referenced_images()
             orphans = self.optimizer.cleanup_orphans(
                 self.image_output,
                 all_site_images,
                 dry_run=dry_run,
             )
-            result.orphans_removed.extend(str(p) for p in orphans)
+            result.removed_image_paths.extend(orphans)
 
         return result
 
@@ -173,20 +170,19 @@ class Publisher:
 
         note = self.discovery.get_note(note_name)
         if note is None:
-            result.failed.append((note_name, "Note not found"))
+            result.failures.append(PublishFailure(note_name, "Note not found"))
             return result
 
-        # Check if publishable
         is_pub, reason = self.discovery.is_publishable(note)
         if not is_pub:
-            result.failed.append((note_name, reason))
+            result.failures.append(PublishFailure(note_name, reason))
             return result
 
         try:
             self._publish_note(note, dry_run)
-            result.published.append(note.title)
+            result.published_titles.append(note.title)
         except Exception as e:
-            result.failed.append((note.title, str(e)))
+            result.failures.append(PublishFailure(note.title, str(e)))
 
         return result
 
@@ -202,38 +198,32 @@ class Publisher:
         """
         result = PublishResult(dry_run=dry_run)
 
-        # Get note info to determine slug
         note = self.discovery.get_note(note_name)
         if note is None:
-            # Note might not exist in vault anymore, try to find by slug
-            import inflection
             slug = inflection.parameterize(note_name)
         else:
             slug = note.slug
 
-        # Find the published file
         published_file = self.content_output / f"{slug}.md"
 
         if not published_file.exists():
-            result.failed.append((note_name, "Published file not found"))
+            result.failures.append(PublishFailure(note_name, "Published file not found"))
             return result
 
         if not dry_run:
             published_file.unlink()
 
-        result.published.append(note_name)
+        result.published_titles.append(note_name)
 
-        # Collect all remaining referenced images
         all_referenced = self._collect_all_referenced_images()
 
-        # Clean up orphans
         if self.optimizer:
             orphans = self.optimizer.cleanup_orphans(
                 self.image_output,
                 all_referenced,
                 dry_run=dry_run,
             )
-            result.orphans_removed.extend(str(p) for p in orphans)
+            result.removed_image_paths.extend(orphans)
 
         return result
 

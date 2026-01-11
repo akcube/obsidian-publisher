@@ -13,26 +13,26 @@ def print_result(result: PublishResult) -> None:
         click.echo(click.style("DRY RUN - No changes made", fg='yellow'))
         click.echo()
 
-    if result.published:
-        click.echo(click.style(f"Published ({len(result.published)}):", fg='green'))
-        for name in result.published:
+    if result.published_titles:
+        click.echo(click.style(f"Published ({len(result.published_titles)}):", fg='green'))
+        for name in result.published_titles:
             click.echo(f"  - {name}")
 
-    if result.failed:
-        click.echo(click.style(f"Failed ({len(result.failed)}):", fg='red'))
-        for name, error in result.failed:
-            click.echo(f"  - {name}: {error}")
+    if result.failures:
+        click.echo(click.style(f"Failed ({len(result.failures)}):", fg='red'))
+        for failure in result.failures:
+            click.echo(f"  - {failure.note_title}: {failure.error}")
 
-    if result.orphans_removed:
-        click.echo(click.style(f"Orphans removed ({len(result.orphans_removed)}):", fg='yellow'))
-        for path in result.orphans_removed:
+    if result.removed_image_paths:
+        click.echo(click.style(f"Orphans removed ({len(result.removed_image_paths)}):", fg='yellow'))
+        for path in result.removed_image_paths:
             click.echo(f"  - {path}")
 
     # Summary
     click.echo()
-    if result.published and not result.failed:
+    if result.published_titles and not result.failures:
         click.echo(click.style("Success!", fg='green', bold=True))
-    elif result.failed:
+    elif result.failures:
         click.echo(click.style("Completed with errors", fg='red', bold=True))
 
 
@@ -71,7 +71,7 @@ def republish(config: Path, dry_run: bool):
         result = publisher.republish(dry_run=dry_run)
         print_result(result)
 
-        if result.failed:
+        if result.failures:
             sys.exit(1)
 
     except FileNotFoundError as e:
@@ -108,7 +108,7 @@ def add(note_name: str, config: Path, dry_run: bool):
         result = publisher.add(note_name, dry_run=dry_run)
         print_result(result)
 
-        if result.failed:
+        if result.failures:
             sys.exit(1)
 
     except FileNotFoundError as e:
@@ -145,7 +145,7 @@ def delete(note_name: str, config: Path, dry_run: bool):
         result = publisher.delete(note_name, dry_run=dry_run)
         print_result(result)
 
-        if result.failed:
+        if result.failures:
             sys.exit(1)
 
     except FileNotFoundError as e:
