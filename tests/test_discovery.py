@@ -167,8 +167,7 @@ Content here.
         # Content is accessed via lazy loading
         assert "# No Frontmatter" in note.context.read_raw()
 
-    def test_source_dir_subdirectory(self, temp_vault):
-        # Create a subdirectory with notes
+    def test_source_dirs_subdirectory(self, temp_vault):
         subdir = temp_vault / "posts"
         subdir.mkdir()
         (subdir / "post1.md").write_text("""---
@@ -180,16 +179,58 @@ tags:
 Post content.
 """)
 
-        discovery = VaultDiscovery(temp_vault, source_dir="posts")
+        discovery = VaultDiscovery(temp_vault, source_dirs=["posts"])
         notes = discovery.discover_all()
 
         assert len(notes) == 1
         assert notes[0].title == "Post One"
 
-    def test_source_dir_not_found(self, temp_vault):
-        discovery = VaultDiscovery(temp_vault, source_dir="nonexistent")
+    def test_source_dirs_multiple(self, temp_vault):
+        posts = temp_vault / "posts"
+        posts.mkdir()
+        (posts / "post1.md").write_text("""---
+title: Post One
+tags:
+  - evergreen
+---
+""")
+
+        projects = temp_vault / "projects"
+        projects.mkdir()
+        (projects / "project1.md").write_text("""---
+title: Project One
+tags:
+  - evergreen
+---
+""")
+
+        discovery = VaultDiscovery(temp_vault, source_dirs=["posts", "projects"])
+        notes = discovery.discover_all()
+
+        assert len(notes) == 2
+        titles = {n.title for n in notes}
+        assert titles == {"Post One", "Project One"}
+
+    def test_source_dirs_not_found(self, temp_vault):
+        discovery = VaultDiscovery(temp_vault, source_dirs=["nonexistent"])
         with pytest.raises(FileNotFoundError):
             discovery.discover_all()
+
+    def test_source_dirs_partial_missing(self, temp_vault):
+        posts = temp_vault / "posts"
+        posts.mkdir()
+        (posts / "post1.md").write_text("""---
+title: Post One
+tags:
+  - evergreen
+---
+""")
+
+        discovery = VaultDiscovery(temp_vault, source_dirs=["posts", "nonexistent"])
+        notes = discovery.discover_all()
+
+        assert len(notes) == 1
+        assert notes[0].title == "Post One"
 
     def test_string_tag_format(self, temp_vault):
         discovery = VaultDiscovery(temp_vault)

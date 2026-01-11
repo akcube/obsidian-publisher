@@ -213,8 +213,11 @@ vault_path: ~/Obsidian/MyVault
 # Path to your static site (e.g., Hugo site)
 output_path: ~/Sites/my-blog
 
-# Subdirectory within vault to scan for notes (default: vault root)
-source_dir: "."
+# Subdirectories within vault to scan for notes (default: vault root)
+source_dirs:
+  - "."
+  # - Zettelkasten
+  # - Projects
 
 # Output directories within the static site
 content_dir: content/posts

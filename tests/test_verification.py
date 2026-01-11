@@ -39,7 +39,7 @@ class TestZeroDiffVerification:
         config = PublisherConfig(
             vault_path=VAULT_PATH,
             output_path=temp_output,
-            source_dir="Zettelkasten",
+            source_dirs=["Zettelkasten"],
             content_dir="content/blog",
             image_dir="static/images",
             image_sources=["Files", "Zettelkasten"],
