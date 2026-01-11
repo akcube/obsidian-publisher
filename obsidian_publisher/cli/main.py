@@ -84,7 +84,7 @@ def republish(config: Path, dry_run: bool):
 
 
 @cli.command()
-@click.argument('note_name')
+@click.argument('note_path')
 @click.option(
     '--config', '-c',
     type=click.Path(exists=True, path_type=Path),
@@ -96,17 +96,22 @@ def republish(config: Path, dry_run: bool):
     is_flag=True,
     help="Preview without making changes"
 )
-def add(note_name: str, config: Path, dry_run: bool):
+def add(note_path: str, config: Path, dry_run: bool):
     """Add or update a specific note.
 
-    Publishes a single note by name. The note must match the configured
+    Publishes a single note. The note must match the configured
     tag filters to be published.
 
-    NOTE_NAME can be the note title, filename, or path.
+    NOTE_PATH is the path to the markdown file to publish.
+
+    \b
+    Examples:
+        obsidian-publish add ./notes/my-note.md
+        obsidian-publish add ~/Vault/Zettelkasten/topic.md
     """
     try:
         publisher = create_publisher_from_config(config)
-        result = publisher.add(note_name, dry_run=dry_run)
+        result = publisher.add(note_path, dry_run=dry_run)
         print_result(result)
 
         if result.failures:
@@ -121,7 +126,7 @@ def add(note_name: str, config: Path, dry_run: bool):
 
 
 @cli.command()
-@click.argument('note_name')
+@click.argument('note_path')
 @click.option(
     '--config', '-c',
     type=click.Path(exists=True, path_type=Path),
@@ -133,17 +138,22 @@ def add(note_name: str, config: Path, dry_run: bool):
     is_flag=True,
     help="Preview without making changes"
 )
-def delete(note_name: str, config: Path, dry_run: bool):
+def delete(note_path: str, config: Path, dry_run: bool):
     """Delete a published note.
 
     Removes the published note and cleans up any orphaned images
     that are no longer referenced by other published notes.
 
-    NOTE_NAME is the note title or slug.
+    NOTE_PATH is the path to the source note file.
+
+    \b
+    Examples:
+        obsidian-publish delete ./notes/my-note.md
+        obsidian-publish delete ~/Vault/Zettelkasten/topic.md
     """
     try:
         publisher = create_publisher_from_config(config)
-        result = publisher.delete(note_name, dry_run=dry_run)
+        result = publisher.delete(note_path, dry_run=dry_run)
         print_result(result)
 
         if result.failures:

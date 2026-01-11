@@ -165,11 +165,11 @@ class Publisher:
 
         return result
 
-    def add(self, note_name: str, dry_run: bool = False) -> PublishResult:
+    def add(self, note_path: str, dry_run: bool = False) -> PublishResult:
         """Publish a specific note.
 
         Args:
-            note_name: Name or path of the note to publish
+            note_path: Path to the note file (must be .md)
             dry_run: If True, don't actually write files
 
         Returns:
@@ -177,9 +177,19 @@ class Publisher:
         """
         result = PublishResult(dry_run=dry_run)
 
-        note = self.discovery.get_note(note_name)
+        path = Path(note_path)
+
+        if not path.exists():
+            result.failures.append(NoteError(path=path, error="File not found"))
+            return result
+
+        if path.suffix != '.md':
+            result.failures.append(NoteError(path=path, error="Not a markdown file"))
+            return result
+
+        note = self.discovery.get_note_metadata(path)
         if note is None:
-            result.failures.append(NoteError(path=Path(note_name), error="Note not found"))
+            result.failures.extend(self.discovery.errors)
             return result
 
         is_pub, reason = self.discovery.is_publishable(note)
@@ -195,11 +205,11 @@ class Publisher:
 
         return result
 
-    def delete(self, note_name: str, dry_run: bool = False) -> PublishResult:
+    def delete(self, note_path: str, dry_run: bool = False) -> PublishResult:
         """Remove a published note and clean up orphaned images.
 
         Args:
-            note_name: Name of the note to delete
+            note_path: Path to the source note file
             dry_run: If True, don't actually delete files
 
         Returns:
@@ -207,22 +217,31 @@ class Publisher:
         """
         result = PublishResult(dry_run=dry_run)
 
-        note = self.discovery.get_note(note_name)
-        if note is None:
-            slug = inflection.parameterize(note_name)
+        path = Path(note_path)
+
+        # Get slug from source file if it exists, otherwise derive from filename
+        if path.exists() and path.suffix == '.md':
+            note = self.discovery.get_note_metadata(path)
+            if note:
+                slug = note.slug
+                title = note.title
+            else:
+                slug = inflection.parameterize(path.stem)
+                title = path.stem
         else:
-            slug = note.slug
+            slug = inflection.parameterize(path.stem)
+            title = path.stem
 
         published_file = self.content_output / f"{slug}.md"
 
         if not published_file.exists():
-            result.failures.append(NoteError(path=Path(note_name), error="Published file not found"))
+            result.failures.append(NoteError(path=path, error="Published file not found"))
             return result
 
         if not dry_run:
             published_file.unlink()
 
-        result.published_titles.append(note_name)
+        result.published_titles.append(title)
 
         all_referenced = self._collect_all_referenced_images()
 
