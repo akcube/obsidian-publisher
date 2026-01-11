@@ -367,20 +367,24 @@ class Publisher:
         return None
 
     def _collect_all_referenced_images(self) -> Set[str]:
-        """Collect all images referenced by currently published notes.
+        """Collect all images referenced by all markdown files in the site.
+
+        Scans the entire content directory (not just published notes) to avoid
+        deleting images used by other pages like interests, about, etc.
 
         Returns:
             Set of image basenames still in use
         """
         referenced = set()
 
-        if not self.content_output.exists():
+        # Scan all markdown files in the output path, not just content_output
+        content_root = self.output_path / "content"
+        if not content_root.exists():
             return referenced
 
-        for md_file in self.content_output.glob("*.md"):
+        import re
+        for md_file in content_root.glob("**/*.md"):
             content = md_file.read_text(encoding='utf-8')
-            # Simple regex to find image references
-            import re
             # Match markdown image syntax: ![alt](/images/name.ext)
             for match in re.finditer(r'!\[[^\]]*\]\([^)]+/([^/)]+)\)', content):
                 referenced.add(match.group(1))
