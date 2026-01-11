@@ -6,7 +6,7 @@ import yaml
 import inflection
 import datetime
 
-from obsidian_publisher.core.models import DiscoveryError, NoteContext, NoteMetadata
+from obsidian_publisher.core.models import NoteContext, NoteError, NoteMetadata
 
 
 class VaultDiscovery:
@@ -36,7 +36,7 @@ class VaultDiscovery:
         self.required_tags = set(required_tags or [])
         self.excluded_tags = set(excluded_tags or [])
         self.fail_fast = fail_fast
-        self.errors: List[DiscoveryError] = []
+        self.errors: List[NoteError] = []
 
     def discover_all(self) -> List[NoteMetadata]:
         """Find all publishable notes in the vault.
@@ -156,7 +156,7 @@ class VaultDiscovery:
                 publication_date=publication_date,
             )
         except Exception as e:
-            self.errors.append(DiscoveryError(path=file_path, error=str(e)))
+            self.errors.append(NoteError(path=file_path, error=str(e)))
             if self.fail_fast:
                 raise
             return None

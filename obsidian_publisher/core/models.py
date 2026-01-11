@@ -56,23 +56,20 @@ class ProcessedNote:
 
 
 @dataclass
-class DiscoveryError:
-    """A failed note discovery/parsing operation."""
+class NoteError:
+    """An error that occurred while processing a note.
+
+    Used for errors at any phase: discovery, processing, or publishing.
+    """
     path: Path
     error: str
-
-
-@dataclass
-class PublishFailure:
-    """A failed publish operation."""
-    note_title: str
-    error: str
+    title: Optional[str] = None
 
 
 @dataclass
 class PublishResult:
     """Result of a publish operation."""
     published_titles: List[str] = field(default_factory=list)
-    failures: List[PublishFailure] = field(default_factory=list)
+    failures: List[NoteError] = field(default_factory=list)
     removed_image_paths: List[Path] = field(default_factory=list)
     dry_run: bool = False
