@@ -454,3 +454,212 @@ class TestEdgeCases:
 
         assert "photo.webp" in result.referenced_images
         assert "icon.svg" in result.referenced_images
+
+
+class TestRegexEdgeCases:
+    """Tests for regex pattern edge cases - wikilinks and image embeds."""
+
+    @pytest.fixture
+    def temp_dir(self):
+        temp_dir = tempfile.mkdtemp()
+        yield Path(temp_dir)
+        shutil.rmtree(temp_dir)
+
+    @pytest.fixture
+    def link_index(self):
+        return LinkIndex.from_dict({
+            "Test Note": "test-note",
+            "File]Name": "file-name",
+            "Note (with) brackets": "note-with-brackets",
+            "Naïve Approach": "naive-approach",
+        })
+
+    def _create_note(self, temp_dir: Path, content: str) -> NoteMetadata:
+        """Helper to create a NoteMetadata with a real file."""
+        file_path = temp_dir / "test.md"
+        file_path.write_text(content)
+
+        return NoteMetadata(
+            context=NoteContext(path=file_path),
+            title="Test",
+            slug="test",
+            frontmatter={},
+            tags=[],
+            creation_date="",
+            publication_date="",
+        )
+
+    # --- Wikilink edge cases ---
+
+    def test_wikilink_with_bracket_in_target(self, link_index, temp_dir):
+        """Single ] in target should be handled correctly."""
+        processor = ContentProcessor(
+            link_index=link_index,
+            link_transform=relative_link(),
+        )
+        note = self._create_note(temp_dir, "See [[File]Name]]")
+
+        result = processor.process(note)
+
+        assert "[File]Name](file-name.md)" in result.content
+
+    def test_wikilink_with_parentheses(self, link_index, temp_dir):
+        """Parentheses in target should work."""
+        processor = ContentProcessor(
+            link_index=link_index,
+            link_transform=relative_link(),
+        )
+        note = self._create_note(temp_dir, "See [[Note (with) brackets]]")
+
+        result = processor.process(note)
+
+        assert "[Note (with) brackets](note-with-brackets.md)" in result.content
+
+    def test_wikilink_with_unicode(self, link_index, temp_dir):
+        """Unicode characters in target should work."""
+        processor = ContentProcessor(
+            link_index=link_index,
+            link_transform=relative_link(),
+        )
+        note = self._create_note(temp_dir, "See [[Naïve Approach]]")
+
+        result = processor.process(note)
+
+        assert "[Naïve Approach](naive-approach.md)" in result.content
+
+    def test_wikilink_display_text_with_bracket(self, link_index, temp_dir):
+        """Display text containing ] should work."""
+        processor = ContentProcessor(
+            link_index=link_index,
+            link_transform=relative_link(),
+        )
+        note = self._create_note(temp_dir, "See [[Test Note|display]text]]")
+
+        result = processor.process(note)
+
+        assert "[display]text](test-note.md)" in result.content
+
+    def test_wikilink_display_text_with_pipe(self, link_index, temp_dir):
+        """Display text containing | should work (everything after first |)."""
+        processor = ContentProcessor(
+            link_index=link_index,
+            link_transform=relative_link(),
+        )
+        note = self._create_note(temp_dir, "See [[Test Note|A|B|C]]")
+
+        result = processor.process(note)
+
+        # Display text should be everything after first |
+        assert "[A|B|C](test-note.md)" in result.content
+
+    def test_consecutive_wikilinks(self, link_index, temp_dir):
+        """Consecutive wikilinks without space should work."""
+        processor = ContentProcessor(
+            link_index=link_index,
+            link_transform=relative_link(),
+        )
+        note = self._create_note(temp_dir, "[[Test Note]][[Test Note]]")
+
+        result = processor.process(note)
+
+        assert result.content.count("[Test Note](test-note.md)") == 2
+
+    def test_wikilink_section_only(self, link_index, temp_dir):
+        """Section-only link like [[#Section]] should work."""
+        processor = ContentProcessor(
+            link_index=link_index,
+            link_transform=relative_link(),
+        )
+        note = self._create_note(temp_dir, "See [[#My Section]]")
+
+        result = processor.process(note)
+
+        # Section-only links should be preserved with anchor
+        assert "#my-section" in result.content
+
+    # --- Image embed edge cases ---
+
+    def test_image_with_bracket_in_name(self, link_index, temp_dir):
+        """Single ] in image filename should work."""
+        processor = ContentProcessor(
+            link_index=link_index,
+            link_transform=relative_link(),
+            image_path_prefix="/images",
+        )
+        note = self._create_note(temp_dir, "![[image]bracket.png]]")
+
+        result = processor.process(note)
+
+        assert "image]bracket.png" in result.referenced_images
+
+    def test_image_with_multiple_dots(self, link_index, temp_dir):
+        """Image with multiple dots in name should work."""
+        processor = ContentProcessor(
+            link_index=link_index,
+            link_transform=relative_link(),
+            image_path_prefix="/images",
+        )
+        note = self._create_note(temp_dir, "![[my.complex.name.png]]")
+
+        result = processor.process(note)
+
+        assert "my.complex.name.png" in result.referenced_images
+
+    def test_image_case_insensitive_extension(self, link_index, temp_dir):
+        """Image extensions should be case-insensitive."""
+        processor = ContentProcessor(
+            link_index=link_index,
+            link_transform=relative_link(),
+            image_path_prefix="/images",
+        )
+        note = self._create_note(temp_dir, "![[photo.PNG]] and ![[other.JpG]]")
+
+        result = processor.process(note)
+
+        assert "photo.PNG" in result.referenced_images
+        assert "other.JpG" in result.referenced_images
+
+    def test_image_alt_text_with_bracket(self, link_index, temp_dir):
+        """Alt text containing ] should work."""
+        processor = ContentProcessor(
+            link_index=link_index,
+            link_transform=relative_link(),
+            image_path_prefix="/images",
+        )
+        note = self._create_note(temp_dir, "![[photo.png|Alt [with] brackets]]")
+
+        result = processor.process(note)
+
+        assert "photo.png" in result.referenced_images
+        # Alt text should be preserved (slugified)
+        assert "alt-with-brackets" in result.content
+
+    def test_image_with_path(self, link_index, temp_dir):
+        """Image with folder path should be tracked."""
+        processor = ContentProcessor(
+            link_index=link_index,
+            link_transform=relative_link(),
+            image_path_prefix="/images",
+        )
+        note = self._create_note(temp_dir, "![[assets/subfolder/image.png]]")
+
+        result = processor.process(note)
+
+        assert "assets/subfolder/image.png" in result.referenced_images
+
+    # --- Mixed edge cases ---
+
+    def test_wikilink_and_image_interleaved(self, link_index, temp_dir):
+        """Mixed wikilinks and images should all be processed."""
+        processor = ContentProcessor(
+            link_index=link_index,
+            link_transform=relative_link(),
+            image_path_prefix="/images",
+        )
+        note = self._create_note(temp_dir, "[[Test Note]] then ![[img.png]] then [[Test Note|alias]]")
+
+        result = processor.process(note)
+
+        assert "[Test Note](test-note.md)" in result.content
+        assert "[alias](test-note.md)" in result.content
+        assert "img.png" in result.referenced_images
